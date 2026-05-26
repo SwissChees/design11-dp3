@@ -28,9 +28,10 @@ Unlike traditional methods that rely on unreliable audio spikes, this tool uses 
 2. Install the required Python packages using the provided `requirements.txt`:
    ```bash
    pip install -r requirements.txt
+   > **Note:** The required packages are `flask`, `opencv-python`, `mss`, and `numpy`.
+
 # Live Sports Commercial Detection Dashboard
 
-> **Note:** The required packages are `flask`, `opencv-python`, `mss`, and `numpy`.
 
 ## 3. Run the Application
 
