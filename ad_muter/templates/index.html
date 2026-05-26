@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Muter Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --turf-green: #2e7d32;
+            --turf-dark: #1b5e20;
+            --retro-yellow: #fbc02d;
+            --retro-red: #d32f2f;
+            --retro-black: #121212;
+            --retro-white: #ffffff;
+        }
+
+        body { 
+            font-family: 'Press Start 2P', cursive;
+            background-color: var(--turf-green); 
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 38px, rgba(255,255,255,0.2) 38px, rgba(255,255,255,0.2) 40px);
+            color: var(--retro-white); 
+            padding: 2rem; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .card { 
+            background: var(--retro-black); 
+            padding: 20px; 
+            border: 4px solid var(--retro-white); 
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.5); 
+            margin-bottom: 25px; 
+            border-radius: 0;
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        
+        .status-indicator { padding: 10px 15px; border: 2px solid var(--retro-white); }
+        .status-active { background: var(--turf-green); color: var(--retro-white); animation: blink 2s infinite; }
+        .status-inactive { background: var(--retro-red); color: var(--retro-white); }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        h2, h3 { color: var(--retro-yellow); text-transform: uppercase; margin-top: 0; letter-spacing: 2px; }
+
+        button { 
+            font-family: 'Press Start 2P', cursive;
+            padding: 12px 20px; 
+            border: 4px solid var(--retro-white); 
+            cursor: pointer; 
+            font-size: 12px; 
+            text-transform: uppercase;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+        }
+        button:active { transform: translate(4px, 4px); box-shadow: none; }
+        
+        .btn-green { background: var(--turf-green); color: var(--retro-white); }
+        .btn-red { background: var(--retro-red); color: var(--retro-white); }
+        .btn-yellow { background: var(--retro-yellow); color: var(--retro-black); border-color: var(--retro-black); }
+        .btn-small { padding: 5px 10px; font-size: 10px; border-width: 2px; box-shadow: 2px 2px 0px rgba(0,0,0,0.5); }
+
+        .log-box { 
+            background: #000; padding: 15px; border: 2px solid #555; 
+            height: 150px; overflow-y: auto; color: #0f0; margin-top: 10px;
+        }
+
+        .controls { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 20px; }
+        input[type="range"] { width: 100%; accent-color: var(--retro-yellow); }
+        
+        select {
+            font-family: 'Press Start 2P', cursive;
+            background: #000; color: var(--retro-white);
+            border: 2px solid var(--retro-white);
+            padding: 8px; font-size: 9px; width: 100%; box-sizing: border-box;
+            margin-bottom: 5px; cursor: pointer;
+        }
+        select option { font-family: sans-serif; font-size: 14px; }
+
+        .mute-alert { font-size: 16px; text-align: center; margin: 20px 0; }
+        .is-muted { color: var(--retro-red); }
+        .is-unmuted { color: var(--turf-green); }
+
+        .live-score {
+            text-align: center; font-size: 18px; color: #0f0;
+            padding: 15px; border: 2px dashed #0f0; margin-bottom: 20px; background: #000;
+        }
+
+        .target-viewer { text-align: center; margin-top: 15px; padding-top: 15px; border-top: 2px dashed #555; }
+        .target-viewer img { max-width: 150px; max-height: 150px; border: 2px solid var(--retro-yellow); image-rendering: pixelated; }
+
+        #cropModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9); z-index: 1000; padding: 20px; box-sizing: border-box;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        .crop-container {
+            position: relative; display: inline-block; max-width: 90%; max-height: 70vh; 
+            border: 4px solid var(--retro-yellow); cursor: crosshair; user-select: none;
+        }
+        .crop-container img { max-width: 100%; max-height: 100%; display: block; pointer-events: none; }
+        .crop-box {
+            position: absolute; border: 2px dashed var(--retro-yellow); 
+            background: rgba(251, 192, 45, 0.3); display: none; pointer-events: none;
+        }
+        .modal-controls { margin-top: 20px; display: flex; gap: 15px; }
+        
+        .app-box { background: #111; padding: 10px; border: 2px solid #333; margin-top: 5px; }
+    </style>
+</head>
+<body onload="populateApps()">
+
+    <div class="card header">
+        <h2>🏈 Auto-Muter</h2>
+        <div id="serviceStatus" class="status-indicator status-inactive">STOPPED</div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <button id="startBtn" class="btn-green" onclick="toggleService('start')">▶ START GAME</button>
+            <button id="stopBtn" class="btn-red" style="display: none;" onclick="toggleService('stop')">⬛ STOP GAME</button>
+            <button class="btn-yellow" onclick="openCropTool()">📸 SETUP TARGET</button>
+        </div>
+        
+        <div class="mute-alert" id="muteStatus">🔊 SYSTEM UNMUTED</div>
+        <p style="text-align: center; color: #888;" id="currentContext">READY FOR KICKOFF</p>
+
+        <div class="target-viewer">
+            <p style="color: #888; font-size: 10px; margin-bottom: 10px;">CURRENT TARGET:</p>
+            <img id="activeTargetImg" src="/template_image" alt="No Target Found" onerror="this.style.display='none'">
+        </div>
+    </div>
+
+    <div class="card" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+        <div>
+            <h3 style="font-size: 12px;">BEHAVIOR</h3>
+            <label style="display:block; margin-bottom:10px;">Visual Threshold: <span id="val1">0.60</span></label>
+            <input type="range" id="threshold" min="0.40" max="0.99" step="0.01" value="0.60" onchange="updateSettings()">
+            
+            <label style="display:block; margin-top:20px; margin-bottom:10px;">Grace Period (Sec): <span id="val2">1.5</span></label>
+            <input type="range" id="grace" min="0" max="5.0" step="0.5" value="1.5" onchange="updateSettings()">
+        </div>
+        
+        <div>
+            <h3 style="font-size: 12px;">ON COMMERCIAL...</h3>
+            <select id="adAction" onchange="updateSettings()" style="margin-bottom: 10px;">
+                <option value="mute">Mute Audio Only</option>
+                <option value="black">Mute & Black Screen</option>
+                <option value="switch">Mute & Switch App</option>
+            </select>
+
+            <div id="appInputs" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px;">
+                
+                <div style="grid-column: span 2; display: flex; justify-content: flex-end;">
+                    <button class="btn-yellow btn-small" id="refreshAppsBtn" onclick="populateApps()">🔄 REFRESH APPS</button>
+                </div>
+
+                <div class="app-box">
+                    <p style="font-size: 8px; color: #888; margin:0 0 5px 0;">BREAK DESTINATION</p>
+                    <select id="appAd" onchange="handleAppSelect('appAd', 'appAdTab')">
+                        <option value="">-- Select App --</option>
+                    </select>
+                    <select id="appAdTab" style="display:none;" onchange="updateSettings()">
+                        <option value="">-- Select Tab --</option>
+                    </select>
+                </div>
+                
+                <div class="app-box">
+                    <p style="font-size: 8px; color: #888; margin:0 0 5px 0;">GAME ORIGIN</p>
+                    <select id="appGame" onchange="handleAppSelect('appGame', 'appGameTab')">
+                        <option value="">-- Select App --</option>
+                    </select>
+                    <select id="appGameTab" style="display:none;" onchange="updateSettings()">
+                        <option value="">-- Select Tab --</option>
+                    </select>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>SYSTEM DATA</h3>
+        <div class="live-score" id="liveMatch">LIVE MATCH: 0.0%</div>
+        <div class="log-box" id="logBox"></div>
+    </div>
+
+    <div id="cropModal">
+        <h3 style="margin-bottom: 5px;">SELECT TARGET</h3>
+        <p style="margin-bottom: 20px; color: #aaa;">Click and drag a box tightly around the semi-transparent logo.</p>
+        
+        <div class="crop-container" id="cropArea" onmousedown="startCrop(event)" onmousemove="doCrop(event)" onmouseup="endCrop()">
+            <img id="screenshotImg" src="" alt="Screenshot">
+            <div id="cropBox" class="crop-box"></div>
+        </div>
+
+        <div class="modal-controls">
+            <button class="btn-red" onclick="closeCropTool()">CANCEL</button>
+            <button class="btn-yellow" onclick="openCropTool()">RETAKE</button>
+            <button class="btn-green" onclick="saveTemplate()">💾 SAVE TEMPLATE</button>
+        </div>
+    </div>
+
+    <script>
+        // --- NEW: MANUAL APP REFRESH LOGIC ---
+        async function populateApps() {
+            const refreshBtn = document.getElementById('refreshAppsBtn');
+            if(refreshBtn) refreshBtn.innerText = "⏳ FETCHING...";
+            
+            try {
+                const res = await fetch('/get_open_apps');
+                const data = await res.json();
+                
+                let optionsHtml = '<option value="">-- Select App --</option>';
+                data.apps.forEach(app => {
+                    optionsHtml += `<option value="${app}">${app}</option>`;
+                });
+
+                // Save current selections to re-apply them if possible
+                const currAd = document.getElementById('appAd').value;
+                const currGame = document.getElementById('appGame').value;
+
+                document.getElementById('appAd').innerHTML = optionsHtml;
+                document.getElementById('appGame').innerHTML = optionsHtml;
+
+                if (currAd) document.getElementById('appAd').value = currAd;
+                if (currGame) document.getElementById('appGame').value = currGame;
+
+                if(refreshBtn) refreshBtn.innerText = "🔄 REFRESH APPS";
+            } catch (e) {
+                if(refreshBtn) refreshBtn.innerText = "❌ ERROR";
+            }
+        }
+
+        async function handleAppSelect(appSelectId, tabSelectId) {
+            const appName = document.getElementById(appSelectId).value;
+            const tabSelect = document.getElementById(tabSelectId);
+            
+            // Explicitly supporting Brave Browser, Chrome, Safari, and Edge
+            const browsers = ["google chrome", "safari", "brave browser", "microsoft edge"];
+            
+            if (appName && browsers.includes(appName.toLowerCase())) {
+                tabSelect.style.display = 'block';
+                tabSelect.innerHTML = '<option value="">⏳ Loading tabs...</option>';
+                
+                try {
+                    const res = await fetch('/get_browser_tabs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ app_name: appName })
+                    });
+                    const data = await res.json();
+                    
+                    let optionsHtml = '<option value="">-- Focus Entire App --</option>';
+                    data.tabs.forEach(tab => {
+                        const shortTab = tab.length > 30 ? tab.substring(0, 30) + '...' : tab;
+                        optionsHtml += `<option value="${tab}">${shortTab}</option>`;
+                    });
+                    tabSelect.innerHTML = optionsHtml;
+                } catch (e) {
+                    tabSelect.innerHTML = '<option value="">Error Loading Tabs</option>';
+                }
+            } else {
+                tabSelect.style.display = 'none';
+                tabSelect.value = "";
+            }
+            
+            updateSettings(); 
+        }
+
+        // --- STANDARD POLLING & UI UPDATE LOGIC ---
+        function toggleService(action) { fetch(`/${action}`, { method: 'POST' }); }
+
+        function updateSettings() {
+            const t = document.getElementById('threshold').value;
+            const g = document.getElementById('grace').value;
+            const action = document.getElementById('adAction').value;
+            
+            const aAd = document.getElementById('appAd').value;
+            const aAdTab = document.getElementById('appAdTab').value;
+            const aGame = document.getElementById('appGame').value;
+            const aGameTab = document.getElementById('appGameTab').value;
+            
+            document.getElementById('val1').innerText = t;
+            document.getElementById('val2').innerText = g;
+            
+            document.getElementById('appInputs').style.display = (action === 'switch') ? 'grid' : 'none';
+
+            fetch('/update_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    threshold: t, 
+                    grace_period: g,
+                    ad_action: action,
+                    app_ad: aAd,
+                    app_ad_tab: aAdTab,
+                    app_game: aGame,
+                    app_game_tab: aGameTab
+                })
+            });
+        }
+
+        setInterval(async () => {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+
+                document.getElementById('startBtn').style.display = data.running ? 'none' : 'block';
+                document.getElementById('stopBtn').style.display = data.running ? 'block' : 'none';
+                
+                const statusBadge = document.getElementById('serviceStatus');
+                statusBadge.innerText = data.running ? 'RUNNING' : 'STOPPED';
+                statusBadge.className = data.running ? 'status-indicator status-active' : 'status-indicator status-inactive';
+
+                const muteLabel = document.getElementById('muteStatus');
+                if (data.muted) {
+                    muteLabel.innerHTML = "🔇 BREAK ACTIVE";
+                    muteLabel.className = "mute-alert is-muted";
+                } else {
+                    muteLabel.innerHTML = "🔊 GAME ACTIVE";
+                    muteLabel.className = "mute-alert is-unmuted";
+                }
+
+                document.getElementById('currentContext').innerText = data.status;
+                
+                const livePct = (data.live_match * 100).toFixed(1);
+                document.getElementById('liveMatch').innerText = `LIVE MATCH: ${livePct}%`;
+
+                const logBox = document.getElementById('logBox');
+                logBox.innerHTML = data.logs.join('<br>');
+                logBox.scrollTop = logBox.scrollHeight;
+            } catch (e) { }
+        }, 1000);
+
+        // --- SCREEN CAPTURE & CROP LOGIC ---
+        const modal = document.getElementById('cropModal');
+        const img = document.getElementById('screenshotImg');
+        const box = document.getElementById('cropBox');
+        
+        let isDrawing = false;
+        let startX, startY;
+        let finalRect = null;
+
+        async function openCropTool() {
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => { video.play(); resolve(); };
+                });
+
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                stream.getTracks().forEach(track => track.stop());
+
+                img.src = canvas.toDataURL('image/png');
+                modal.style.display = 'flex';
+                box.style.display = 'none';
+                finalRect = null;
+
+            } catch (err) {
+                console.warn("Screen capture canceled or failed:", err);
+            }
+        }
+
+        function closeCropTool() { modal.style.display = 'none'; }
+
+        function startCrop(e) {
+            isDrawing = true;
+            const rect = img.getBoundingClientRect(); 
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+            
+            box.style.left = startX + 'px';
+            box.style.top = startY + 'px';
+            box.style.width = '0px';
+            box.style.height = '0px';
+            box.style.display = 'block';
+        }
+
+        function doCrop(e) {
+            if (!isDrawing) return;
+            const rect = img.getBoundingClientRect(); 
+            let currentX = e.clientX - rect.left;
+            let currentY = e.clientY - rect.top;
+
+            currentX = Math.max(0, Math.min(currentX, rect.width));
+            currentY = Math.max(0, Math.min(currentY, rect.height));
+
+            const width = Math.abs(currentX - startX);
+            const height = Math.abs(currentY - startY);
+            box.style.width = width + 'px';
+            box.style.height = height + 'px';
+            box.style.left = Math.min(currentX, startX) + 'px';
+            box.style.top = Math.min(currentY, startY) + 'px';
+        }
+
+        function endCrop() {
+            isDrawing = false;
+            finalRect = {
+                left: parseFloat(box.style.left),
+                top: parseFloat(box.style.top),
+                width: parseFloat(box.style.width),
+                height: parseFloat(box.style.height)
+            };
+        }
+
+        async function saveTemplate() {
+            try {
+                if (!finalRect || finalRect.width < 5 || finalRect.height < 5) {
+                    alert("Please draw a valid box around the target first!");
+                    return;
+                }
+
+                const visualRect = img.getBoundingClientRect();
+                const scaleX = img.naturalWidth / visualRect.width;
+                const scaleY = img.naturalHeight / visualRect.height;
+
+                const cropCanvas = document.createElement('canvas');
+                cropCanvas.width = finalRect.width * scaleX;
+                cropCanvas.height = finalRect.height * scaleY;
+                const ctx = cropCanvas.getContext('2d');
+
+                ctx.drawImage(
+                    img, 
+                    finalRect.left * scaleX, finalRect.top * scaleY, 
+                    finalRect.width * scaleX, finalRect.height * scaleY, 
+                    0, 0, 
+                    cropCanvas.width, cropCanvas.height 
+                );
+
+                const base64Image = cropCanvas.toDataURL('image/png');
+
+                const res = await fetch('/save_template', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_data: base64Image })
+                });
+
+                if (res.ok) {
+                    const targetImg = document.getElementById('activeTargetImg');
+                    if (targetImg) {
+                        targetImg.src = '/template_image?t=' + new Date().getTime();
+                        targetImg.style.display = 'inline-block';
+                    }
+                    
+                    alert("Target successfully saved! \n\nIMPORTANT: If the bot is currently running, click 'STOP GAME' then 'START GAME' to load the new image.");
+                    closeCropTool();
+                } else {
+                    alert("Backend Error: Could not save target to server.");
+                }
+            } catch (error) {
+                console.error("Save Template Error:", error);
+                alert("Browser Error: Failed to process the image crop. Check the console log.");
+            }
+        }
+    </script>
+</body>
+</html>
