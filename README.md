@@ -4,6 +4,12 @@ Auto-Muter is a lightweight, pure computer-vision application designed to automa
 
 Unlike traditional methods that rely on unreliable audio spikes, this tool uses localized HDR and true 3D edge detection to track the broadcast network's transparent watermark logo. When the logo disappears, the commercial has started. When the logo returns, the game is back on.
 
+--- 
+## Authorship
+* **Co-Author:** Kevin Lai
+* **Co-Author:** Gemini 3.1 Pro
+* **Creation Date:** May 2026
+
 ---
 
 ## ✨ Key Features
