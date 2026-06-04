@@ -1,6 +1,6 @@
-# 🏈 Auto-Muter (Pure Visual Broadcast Tracker)
+# 🏈 Ad Slayer (Pure Visual Broadcast Tracker)
 
-Auto-Muter is a lightweight, pure computer-vision application designed to automatically detect commercial breaks during live sports broadcasts and instantly mute your computer, black out the screen, or switch to a different app (like Spotify or Reddit). 
+Ad Slayer is a lightweight, pure computer-vision application designed to automatically detect commercial breaks during live sports broadcasts and instantly mute your computer, black out the screen, or switch to a different app (like Spotify or Reddit). 
 
 Unlike traditional methods that rely on unreliable audio spikes, this tool uses localized HDR and true 3D edge detection to track the broadcast network's transparent watermark logo. When the logo disappears, the commercial has started. When the logo returns, the game is back on.
 
