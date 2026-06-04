@@ -9,7 +9,6 @@ Unlike traditional methods that rely on unreliable audio spikes, this tool uses 
 * **Co-Author:** Kevin Lai
 * **Co-Author:** Gemini 3.1 Pro
 * **Creation Date:** May 2026
-
 ---
 
 ## ✨ Key Features
