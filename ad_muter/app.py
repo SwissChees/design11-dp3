@@ -132,12 +132,15 @@ def switch_to_app_or_tab(app_name, tab_title=""):
         except Exception as e:
             log_msg(f"Failed to switch app: {e}")
 
-# --- ADVANCED TRANSPARENT EXTRACTION ---
+# --- UPDATED: SPATIAL FREQUENCY EXTRACTION ---
 def extract_transparent_logo(gray_img):
     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4,4))
     enhanced = clahe.apply(gray_img)
     
-    blur = cv2.GaussianBlur(enhanced, (3, 3), 0)
+    # NEW: Increased Gaussian Kernel to (5,5). 
+    # This aggressively melts away "dirty" background textures (faces, crowds, ice lines)
+    # but leaves the thick, structural logo edges completely intact for the Sobel filter.
+    blur = cv2.GaussianBlur(enhanced, (5, 5), 0)
     
     sobelx = cv2.Sobel(blur, cv2.CV_64F, 1, 0, ksize=3)
     sobely = cv2.Sobel(blur, cv2.CV_64F, 0, 1, ksize=3)
@@ -145,7 +148,9 @@ def extract_transparent_logo(gray_img):
     
     mag_8u = cv2.convertScaleAbs(mag, alpha=1.5)
     
-    _, clean = cv2.threshold(mag_8u, 60, 255, cv2.THRESH_TOZERO)
+    # NEW: Lowered Noise Floor. Because the larger blur destroyed the background noise,
+    # we can safely drop this threshold from 60 to 40 to catch very faint logo traces.
+    _, clean = cv2.threshold(mag_8u, 40, 255, cv2.THRESH_TOZERO)
     
     return clean
 
@@ -169,7 +174,15 @@ def detection_loop():
         for s in scales if int(template_mask.shape[1]*s) >= 10 and int(template_mask.shape[0]*s) >= 10
     ]
 
-    log_msg("Initializing... Scanning full screen to lock target coordinates.")
+    log_msg("Switch to your game now! Locking target in 3 seconds...")
+    for i in range(3, 0, -1):
+        if not app_state["running"]:  
+            log_msg("Start aborted.")
+            return
+        log_msg(f"Locking in {i}...")
+        time.sleep(1)
+
+    log_msg("Scanning full screen to lock target coordinates...")
 
     screen_init = np.array(sct.grab(monitor))
     screen_gray_init = cv2.cvtColor(screen_init, cv2.COLOR_BGRA2GRAY)
@@ -218,7 +231,6 @@ def detection_loop():
     is_commercial_mode = False
     target_lost_time = None
     
-    # NEW: Counter to ensure consecutive frames match before unmuting
     recovery_counter = 0 
     REQUIRED_RECOVERY_FRAMES = 4
 
@@ -226,6 +238,8 @@ def detection_loop():
         try:
             screen_patch = np.array(sct.grab(grab_region))
             patch_gray = cv2.cvtColor(screen_patch, cv2.COLOR_BGRA2GRAY)
+            
+            # Use the new spatial frequency extractor directly on the live frame
             patch_mask = extract_transparent_logo(patch_gray)
 
             if cv2.countNonZero(patch_mask) < 20:
@@ -238,18 +252,17 @@ def detection_loop():
             found_target = (highest_confidence >= app_state["threshold"])
             app_state["live_match"] = highest_confidence
 
-            # --- UPDATED STATE MACHINE ---
             if is_commercial_mode:
                 if found_target:
                     recovery_counter += 1
                 else:
-                    recovery_counter = 0 # Strict reset if the match drops for even 1 frame
+                    recovery_counter = 0 
                 
                 print(f"Live Scan: {highest_confidence*100:.1f}% | Unmute Buffer: {recovery_counter}/{REQUIRED_RECOVERY_FRAMES}")
 
                 if recovery_counter >= REQUIRED_RECOVERY_FRAMES:
                     is_commercial_mode = False
-                    recovery_counter = 0 # Reset for the next commercial break
+                    recovery_counter = 0 
                     set_mute(False, f"Game Returned! (Match: {highest_confidence*100:.1f}%)")
                     
                     if app_state["ad_action"] == "black":
